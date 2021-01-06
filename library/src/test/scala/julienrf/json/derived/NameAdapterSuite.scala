@@ -3,7 +3,7 @@ package julienrf.json.derived
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FeatureSpec
-import org.scalatest.prop.Checkers
+import org.scalatestplus.scalacheck.Checkers
 import play.api.libs.json._
 
 class NameAdapterSuite extends FeatureSpec with Checkers {
@@ -13,7 +13,10 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
     scenario("product type") {
       case class Foo(sC: String, iC: Int)
       implicit val fooArbitrary: Arbitrary[(Foo, JsValue)] =
-        Arbitrary(for (s <- Gen.alphaStr; i <- arbitrary[Int]) yield (Foo(s, i), Json.obj("sC" -> s, "iC" -> i)))
+        Arbitrary(
+          for (s <- Gen.alphaStr; i <- arbitrary[Int])
+            yield (Foo(s, i), Json.obj("sC" -> s, "iC" -> i))
+        )
       implicit val fooFormat: OFormat[Foo] = oformat()
       jsonIdentityLaw[Foo]
     }
@@ -25,7 +28,10 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
     scenario("product type") {
       case class Foo(sC: String, iC: Int)
       implicit val fooArbitrary: Arbitrary[(Foo, JsValue)] =
-        Arbitrary(for (s <- Gen.alphaStr; i <- arbitrary[Int]) yield (Foo(s, i), Json.obj("s_c" -> s, "i_c" -> i)))
+        Arbitrary(
+          for (s <- Gen.alphaStr; i <- arbitrary[Int])
+            yield (Foo(s, i), Json.obj("s_c" -> s, "i_c" -> i))
+        )
       implicit val fooFormat: OFormat[Foo] = oformat(snakeAdapter())
       jsonIdentityLaw[Foo]
     }
@@ -35,17 +41,21 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
       case class Bar(xC: Int) extends Foo
       case class Baz(sC: String) extends Foo
       case object Bah extends Foo
-      implicit lazy val fooFormat: OFormat[Foo] = flat.oformat((__ \ "type").format[String], snakeAdapter())
+      implicit lazy val fooFormat: OFormat[Foo] =
+        flat.oformat((__ \ "type").format[String], snakeAdapter())
 
       implicit val fooArbitrary: Arbitrary[(Foo, JsValue)] =
         Arbitrary(
           Gen.oneOf(
-            arbitrary[Int].map(i => (Bar(i), Json.obj("x_c" -> i, "type" -> "Bar"))),
-            Gen.alphaStr.map(s => (Baz(s), Json.obj("s_c" -> s, "type" -> "Baz"))),
-            Gen.const((Bah, Json.obj("type" -> "Bah"))
-            )
-          ))
-
+            arbitrary[Int].map(i =>
+              (Bar(i), Json.obj("x_c" -> i, "type" -> "Bar"))
+            ),
+            Gen.alphaStr.map(s =>
+              (Baz(s), Json.obj("s_c" -> s, "type" -> "Baz"))
+            ),
+            Gen.const((Bah, Json.obj("type" -> "Bah")))
+          )
+        )
 
       jsonIdentityLaw[Foo]
     }
@@ -57,21 +67,32 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
       case object Bah extends Foo
       case class Bat(oC: Option[String]) extends Foo
 
-      implicit val fooFormat: OFormat[Foo] = flat.oformat((__ \ "type").format[String], snakeAdapter())
+      implicit val fooFormat: OFormat[Foo] =
+        flat.oformat((__ \ "type").format[String], snakeAdapter())
 
       implicit val fooArbitrary: Arbitrary[(Foo, JsValue)] =
         Arbitrary(
           Gen.oneOf(
-            arbitrary[Int].map(i => (Bar(i), Json.obj("x_c" -> i, "type" -> "Bar"))),
-            Gen.alphaStr.map(s => (Baz(s), Json.obj("s_c" -> s, "type" -> "Baz"))),
+            arbitrary[Int].map(i =>
+              (Bar(i), Json.obj("x_c" -> i, "type" -> "Bar"))
+            ),
+            Gen.alphaStr.map(s =>
+              (Baz(s), Json.obj("s_c" -> s, "type" -> "Baz"))
+            ),
             Gen.const((Bah, Json.obj("type" -> "Bah"))),
-            arbitrary[Option[String]].map(s => (Bat(s), Json.obj("type" -> "Bat") ++ s.fold(Json.obj())(x => Json.obj("o_c" -> x))))
-          ))
+            arbitrary[Option[String]].map(s =>
+              (
+                Bat(s),
+                Json.obj("type" -> "Bat") ++ s.fold(Json.obj())(x =>
+                  Json.obj("o_c" -> x)
+                )
+              )
+            )
+          )
+        )
 
       jsonIdentityLaw[Foo]
     }
-
-
 
     scenario("recursive type") {
       sealed trait Tree
@@ -85,10 +106,11 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
             "lhs_snake" -> writeTree(n.lhsSnake),
             "rhs_snake" -> writeTree(n.rhsSnake)
           )
-        case l: Leaf => Json.obj(
-          "type" -> "Leaf",
-          "l_s" -> l.lS
-        )
+        case l: Leaf =>
+          Json.obj(
+            "type" -> "Leaf",
+            "l_s" -> l.lS
+          )
       }
 
       implicit val arbitraryTree: Arbitrary[Tree] = {
@@ -110,21 +132,27 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
       }
 
       {
-        lazy val treeReads: Reads[Tree] = flat.reads[Tree]((__ \ "type").read[String], snakeAdapter(1))
-        lazy val treeWrites: OWrites[Tree] = flat.owrites((__ \ "type").write[String], snakeAdapter(1))
-        implicit lazy val treeFormat: OFormat[Tree] = OFormat.apply[Tree](treeReads, treeWrites)
+        lazy val treeReads: Reads[Tree] =
+          flat.reads[Tree]((__ \ "type").read[String], snakeAdapter(1))
+        lazy val treeWrites: OWrites[Tree] =
+          flat.owrites((__ \ "type").write[String], snakeAdapter(1))
+        implicit lazy val treeFormat: OFormat[Tree] =
+          OFormat.apply[Tree](treeReads, treeWrites)
         jsonIdentityLaw[Tree]
       }
     }
 
   }
 
-  def snakeAdapter(max:Int = 2) = new NameAdapter {
+  def snakeAdapter(max: Int = 2) = new NameAdapter {
     var nameMap = Map[String, Int]()
 
     def increment(v1: String) = this.synchronized {
       nameMap.get(v1).fold(nameMap += v1 -> 1)(i => nameMap += v1 -> (i + 1))
-      if (nameMap(v1) > max) throw new RuntimeException(s"Snake conversion applied more than $max times to field: $v1")
+      if (nameMap(v1) > max)
+        throw new RuntimeException(
+          s"Snake conversion applied more than $max times to field: $v1"
+        )
     }
 
     override def apply(v1: String): String = {
@@ -133,10 +161,15 @@ class NameAdapterSuite extends FeatureSpec with Checkers {
     }
   }
 
-
-  def jsonIdentityLaw[A](implicit reads: Reads[A], owrites: OWrites[A], arbA: Arbitrary[(A, JsValue)]): Unit =
+  def jsonIdentityLaw[A](implicit
+      reads: Reads[A],
+      owrites: OWrites[A],
+      arbA: Arbitrary[(A, JsValue)]
+  ): Unit =
     check((a: (A, JsValue)) => {
-      reads.reads(a._2).fold(_ => false, r => r == a._1 && owrites.writes(r) == a._2)
+      reads
+        .reads(a._2)
+        .fold(_ => false, r => r == a._1 && owrites.writes(r) == a._2)
     })
 
 }

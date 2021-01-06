@@ -14,6 +14,7 @@ val library =
       libraryDependencies ++= Seq(
         "com.chuusai" %%% "shapeless" % "2.3.3",
         "org.scalatest" %%% "scalatest" % "3.1.4" % Test,
+        "org.scalatestplus" %%% "scalacheck-1-14" % "3.1.4.0" % Test,
         "org.scalacheck" %%% "scalacheck" % "1.14.3" % Test,
         "com.typesafe.play" %%% "play-json" % "2.9.1"
       ),

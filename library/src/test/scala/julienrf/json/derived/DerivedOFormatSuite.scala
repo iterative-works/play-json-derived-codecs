@@ -3,7 +3,7 @@ package julienrf.json.derived
 import org.scalacheck.{Gen, Arbitrary}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.FeatureSpec
-import org.scalatest.prop.Checkers
+import org.scalatestplus.scalacheck.Checkers
 import play.api.libs.json.{JsNumber, Json, OFormat, OWrites, Reads, __}
 
 class DerivedOFormatSuite extends FeatureSpec with Checkers {
@@ -13,7 +13,9 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
     scenario("product type") {
       case class Foo(s: String, i: Int)
       implicit val fooArbitrary: Arbitrary[Foo] =
-        Arbitrary(for (s <- arbitrary[String]; i <- arbitrary[Int]) yield Foo(s, i))
+        Arbitrary(
+          for (s <- arbitrary[String]; i <- arbitrary[Int]) yield Foo(s, i)
+        )
       implicit val fooFormat: OFormat[Foo] = oformat()
       identityLaw[Foo]
     }
@@ -45,11 +47,13 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
         identityLaw[Foo]
       }
       {
-        implicit val fooFormat: OFormat[Foo] = flat.oformat((__ \ "type").format[String])
+        implicit val fooFormat: OFormat[Foo] =
+          flat.oformat((__ \ "type").format[String])
         identityLaw[Foo]
       }
       {
-        implicit val fooFormat: OFormat[Foo] = withTypeTag.oformat(TypeTagSetting.FullClassName)
+        implicit val fooFormat: OFormat[Foo] =
+          withTypeTag.oformat(TypeTagSetting.FullClassName)
         identityLaw[Foo]
       }
     }
@@ -78,7 +82,8 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
         identityLaw[Tree]
       }
       {
-        implicit lazy val treeFormat: OFormat[Tree] = flat.oformat((__ \ "$type").format[String])
+        implicit lazy val treeFormat: OFormat[Tree] =
+          flat.oformat((__ \ "$type").format[String])
         identityLaw[Tree]
       }
     }
@@ -92,7 +97,11 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
     }
   }
 
-  def identityLaw[A](implicit reads: Reads[A], owrites: OWrites[A], arbA: Arbitrary[A]): Unit =
+  def identityLaw[A](implicit
+      reads: Reads[A],
+      owrites: OWrites[A],
+      arbA: Arbitrary[A]
+  ): Unit =
     check((a: A) => reads.reads(owrites.writes(a)).fold(_ => false, _ == a))
 
   feature("default codecs represent sum types using nested JSON objects") {
@@ -101,7 +110,11 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
       case class Bar(x: Int) extends Foo
       case class Baz(s: String) extends Foo
       val fooFormat: OFormat[Foo] = oformat()
-      assert(fooFormat.writes(Bar(42)) == Json.obj("Bar" -> Json.obj("x" -> JsNumber(42))))
+      assert(
+        fooFormat.writes(Bar(42)) == Json.obj(
+          "Bar" -> Json.obj("x" -> JsNumber(42))
+        )
+      )
     }
   }
 
@@ -110,8 +123,12 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
       sealed trait Foo
       case class Bar(x: Int) extends Foo
       case class Baz(s: String) extends Foo
-      val fooFlatFormat: OFormat[Foo] = flat.oformat((__ \ "type").format[String])
-      assert(fooFlatFormat.writes(Bar(42)) == Json.obj("type" -> "Bar", "x" -> JsNumber(42)))
+      val fooFlatFormat: OFormat[Foo] =
+        flat.oformat((__ \ "type").format[String])
+      assert(
+        fooFlatFormat
+          .writes(Bar(42)) == Json.obj("type" -> "Bar", "x" -> JsNumber(42))
+      )
     }
   }
 
@@ -140,7 +157,12 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
         Arbitrary(for (foo <- arbitrary[Foo]) yield Bar(foo))
 
       identityLaw[Bar]
-      assert(barFormat.reads(Json.obj("foo" -> Json.obj())).asOpt.contains(Bar(Foo(None))))
+      assert(
+        barFormat
+          .reads(Json.obj("foo" -> Json.obj()))
+          .asOpt
+          .contains(Bar(Foo(None)))
+      )
 //      See https://github.com/playframework/playframework/issues/5863
 //      assert(barFormat.reads(Json.obj("foo" -> 42)).asOpt.isEmpty)
     }
@@ -151,12 +173,18 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
       sealed trait Foo
       case class Bar(x: Int) extends Foo
       case class Baz(s: String) extends Foo
-      val fooFlatFormat: OFormat[Foo] = flat.oformat((__ \ "type").format[String])
-      val readResult = fooFlatFormat.reads(Json.parse("""{"type": "Bar", "x": "string"}"""))
+      val fooFlatFormat: OFormat[Foo] =
+        flat.oformat((__ \ "type").format[String])
+      val readResult =
+        fooFlatFormat.reads(Json.parse("""{"type": "Bar", "x": "string"}"""))
       val errorString = readResult.fold(
         _.flatMap { case (path, errors) =>
-          errors.map(_.message + (if (path != __) " at " + path.toString() else "")) }.sorted.mkString("; "),
-        _ => "No Errors")
+          errors.map(
+            _.message + (if (path != __) " at " + path.toString() else "")
+          )
+        }.sorted.mkString("; "),
+        _ => "No Errors"
+      )
       assert(errorString == "error.expected.jsnumber at /x; error.sealed.trait")
     }
   }
@@ -170,7 +198,8 @@ class DerivedOFormatSuite extends FeatureSpec with Checkers {
       implicit val barTypeTag: CustomTypeTag[Bar] = CustomTypeTag("_bar_")
       implicit val bazTypeTag: CustomTypeTag[Baz] = CustomTypeTag("_baz_")
 
-      implicit val fooFormat: OFormat[Foo] = withTypeTag.oformat(TypeTagSetting.UserDefinedName)
+      implicit val fooFormat: OFormat[Foo] =
+        withTypeTag.oformat(TypeTagSetting.UserDefinedName)
 
       val foo: Foo = Bar(42)
       val json = fooFormat.writes(Bar(42))
